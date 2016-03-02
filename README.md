@@ -29,12 +29,12 @@ software repository under the "LICENSE" file.
 
 Building
 ========
-This package depends upon OpenNSL 3.0.0.3.
+This package depends upon OpenNSL 3.0.0.4 or later.
 
 To build SAI, change to the bin/s6000-x86-trident-deb80 directory.  Use the make
 command to build the SAI shared library.
 
 Note: The OpenNSL include files are assumed to be in
-../opennsl/include (relative to the sai-1.0.0.0 directory).  If the
+../opennsl/include (relative to the sai-1.0.0.1 directory).  If the
 headers are in a different location, set the MAKE variable OPENNSL_INC
 to point to that location.
