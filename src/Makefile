@@ -33,10 +33,10 @@ export SED     = sed
 export RM      = rm
 export PYTHON_H = /usr/include/python2.7
 
-ifeq ($(findstring ocp_sai,$(SAI_BASE)),)
-  export SAI_ROOT =  $(SAI_BASE)/ocp_sai
-else
+ifeq ($(realpath $(SAI_BASE)/ocp_sai),)
   export SAI_ROOT =  $(SAI_BASE)
+else
+  export SAI_ROOT =  $(SAI_BASE)/ocp_sai
 endif
 
 ifeq ($(PLATFORM),)
@@ -53,13 +53,35 @@ CFLAGS += -Wno-unused-result -Wno-error=format -Wno-error=format-security -g -O0
 CFLAGS += -fno-common -fno-strict-aliasing -funit-at-a-time -msoft-float -Wall -Werror
 CFLAGS += -DSTATIC=static -DLOG_TEST -DLOG_SAI -DPRINT_TO_SYSLOG -fPIC $(INCLUDE_FLAGS)
 
-ifeq ($(OPENNSL_INC),)
-  OPENNSL_INC = $(realpath $(SAI_ROOT)/../opennsl/include)
-  ifeq ($(OPENNSL_INC),)
-    $(error : path to OpenNSL headers not found)
+ifeq ($(OPENNSL_BASE),)
+  OPENNSL_BASE = $(abspath $(SAI_ROOT)/../opennsl)
+  ifeq ($(wildcard $(OPENNSL_BASE)),)
+    $(error path to OpenNSL - $(OPENNSL_BASE) - not found)
   endif
+  $(info path to OpenNSL is $(OPENNSL_BASE))
+endif
+
+ifeq ($(OPENNSL_INC),)
+  OPENNSL_INC = $(abspath $(OPENNSL_BASE)/include)
+  ifeq ($(wildcard $(OPENNSL_INC)),)
+    $(error path to OpenNSL includes - $(OPENNSL_INC) - not found)
+  endif
+  $(info path to OpenNSL includes is $(OPENNSL_INC))
 endif
 CFLAGS += -I$(OPENNSL_INC)
+
+OPENNSL_HEADERS = $(abspath $(OPENNSL_INC)/opennsl)
+
+ifeq ($(OPENNSL_BUILD),)
+  OPENNSL_BUILD = $(abspath $(OPENNSL_BASE)/output/$(PLATFORM))
+  ifeq ($(wildcard $(OPENNSL_BUILD)),)
+    OPENNSL_BUILD = $(abspath $(OPENNSL_BASE)/bin/$(PLATFORM))
+    ifeq ($(wildcard OPENNSL_BUILD)),)
+      $(error path to OpenNSL build directory - $(OPENNSL_BUILD) - not found)
+    endif
+  endif
+  $(info path to OpenNSL build directory is $(OPENNSL_BUILD))
+endif
 
 # Fixit
 VERSION := 1
@@ -70,9 +92,10 @@ SAI_BIN := $(OUTPATH)bin
 SAI_OBJS := $(OUTPATH)objects
 
 ifeq ($(LIB_OPENNSL_PATH),)
-  LIB_OPENNSL_PATH := $(realpath $(OPENNSL_INC)/../output/$(PLATFORM)/build)
-  ifeq ($(LIB_OPENNSL_PATH),)
-    $(error : path to OpenNSL binaries not found)
+  ifeq ($(realpath $(OPENNSL_BASE)/output/$(PLATFORM)),)
+    LIB_OPENNSL_PATH := $(abspath $(OPENNSL_BASE)/bin/$(PLATFORM))
+  else
+    LIB_OPENNSL_PATH := $(abspath $(OPENNSL_BASE)/output/$(PLATFORM)/build)
   endif
 endif
 ifeq ($(LIB_SWITCH_OPENNSL_PATH),)
@@ -110,8 +133,12 @@ PACKAGES_DIR ?= $(abspath $(OUTPATH)/packages/)
 SAI_PACKAGE = $(abspath $(PACKAGES_DIR)/$(SAI_RELEASE)).tar
 
 .DEFAULT_GOAL := all
-all:  $(sai_so_fullname)
+all: $(OPENNSL_HEADERS) $(sai_so_fullname)
 
+$(OPENNSL_HEADERS):
+	$(MAKE) -C $(OPENNSL_BUILD) OUTPATH=output/$(PLATFORM) cdp
+
+#sdk-extract papi
 
 $(objects): $(SAI_OBJS)/%.o : %.c
 	mkdir -p $(SAI_OBJS)
@@ -164,8 +191,9 @@ endif
 # into a separate platform-specific bin package.  The source code will
 # go into a package that should be the same for all platforms.
 #
-	tar -cf $(SAI_PACKAGE) $(tar_options) --absolute-names --transform='s,$(SAI_BIN),$(SAI_RELEASE)/bin/$(L7_PLATFORM),' --exclude-vcs --exclude-backups $(wildcard $(SAI_BIN)/libsai*)
+	tar -cf $(SAI_PACKAGE) $(tar_options) --absolute-names --transform='s,$(SAI_BIN),$(SAI_RELEASE)/bin/$(L7_PLATFORM)/bin,' --exclude-vcs --exclude-backups $(wildcard $(SAI_BIN)/libsai*)
 	tar -rf $(SAI_PACKAGE) $(tar_options) --absolute-names --transform='s,$(SAI_ROOT),$(SAI_RELEASE),' $(SAI_ROOT)/bin/$(PLATFORM)/Makefile
+	tar -rf $(SAI_PACKAGE) $(tar_options) --absolute-names --transform='s,$(SAI_ROOT),$(SAI_RELEASE),' $(SAI_ROOT)/bin/$(PLATFORM)/package.cfg
 #
 # Source code packaging
 #
@@ -208,9 +236,12 @@ dump_vars:
 	@echo CFLAGS              = $(CFLAGS)
 	@echo CROSS_COMPILE       = $(CROSS_COMPILE)
 	@echo LIB_OPENNSL_PATH    = $(LIB_OPENNSL_PATH)
+	@echo OPENNSL_BASE        = $(OPENNSL_BASE)
+	@echo OPENNSL_HEADERS     = $(OPENNSL_HEADERS)
 	@echo OPENNSL_INC         = $(OPENNSL_INC)
 	@echo OUTPATH             = $(OUTPATH)
 	@echo PACKAGES_DIR        = $(PACKAGES_DIR)
+	@echo SAI_BASE            = $(SAI_BASE)
 	@echo SAI_BIN             = $(SAI_BIN)
 	@echo SAI_OBJS            = $(SAI_OBJS)
 	@echo SAI_PACKAGE         = $(SAI_PACKAGE)
