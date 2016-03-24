@@ -166,6 +166,7 @@ endif
 #
 	tar -cf $(SAI_PACKAGE) $(tar_options) --absolute-names --transform='s,$(SAI_BIN),$(SAI_RELEASE)/bin/$(L7_PLATFORM),' --exclude-vcs --exclude-backups $(wildcard $(SAI_BIN)/libsai*)
 	tar -rf $(SAI_PACKAGE) $(tar_options) --absolute-names --transform='s,$(SAI_ROOT),$(SAI_RELEASE),' $(SAI_ROOT)/bin/$(PLATFORM)/Makefile
+	tar -rf $(SAI_PACKAGE) $(tar_options) --absolute-names --transform='s,$(SAI_ROOT),$(SAI_RELEASE),' $(SAI_ROOT)/bin/$(PLATFORM)/package.cfg
 #
 # Source code packaging
 #
